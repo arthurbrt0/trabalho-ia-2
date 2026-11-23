@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jogo da Velha — RN + AG + Minimax</title>
+  <link rel="stylesheet" href="/estilo.css">
+</head>
+<body>
+  <header class="topo">
+    <div>
+      <p class="sobretitulo">PUCRS · Inteligência Artificial · T2</p>
+      <h1>Jogo da Velha</h1>
+      <p class="resumo">Uma rede neural aprende a jogar. Os pesos evoluem por algoritmo genético, e o Minimax é quem treina a rede.</p>
+    </div>
+  </header>
+
+  <nav class="abas" aria-label="Modos">
+    <button type="button" class="aba ativa" data-aba="minimax">Você × Minimax</button>
+    <button type="button" class="aba" data-aba="treino">Aprendizagem</button>
+    <button type="button" class="aba" data-aba="rede">Você × Rede</button>
+  </nav>
+
+  <p id="erro" class="erro" hidden></p>
+
+  <main>
+    <section id="painel-minimax" class="painel">
+      <div class="jogo">
+        <div>
+          <div id="tabuleiro-minimax" class="tabuleiro"></div>
+          <p id="anuncio-minimax" class="anuncio">Escolha quem começa e inicie a partida.</p>
+        </div>
+        <aside class="lateral">
+          <h2>Contra o Minimax</h2>
+          <p class="nota">Difícil usa o Minimax em toda jogada. Médio usa o Minimax em 50% das jogadas e sorteia a casa nas outras 50%.</p>
+          <label>Modo
+            <select id="dificuldade-minimax">
+              <option value="dificil">Difícil</option>
+              <option value="medio">Médio</option>
+            </select>
+          </label>
+          <label class="cheque">
+            <input id="comeco-minimax" type="checkbox" checked>
+            Eu começo (sou o X)
+          </label>
+          <div class="botoes">
+            <button type="button" id="nova-minimax" class="primario">Nova partida</button>
+            <button type="button" id="zerar-minimax" class="secundario">Zerar placar</button>
+          </div>
+          <dl id="placar-minimax" class="placar"></dl>
+        </aside>
+      </div>
+    </section>
+
+    <section id="painel-treino" class="painel" hidden>
+      <div class="cartas" id="cartas"></div>
+
+      <div class="fases" id="fases" aria-label="Currículo">
+        <span data-fase="medio">1 · Médio</span>
+        <span data-fase="misto">2 · Misto</span>
+        <span data-fase="dificil">3 · Difícil</span>
+      </div>
+
+      <form id="form-treino" class="grade-config">
+        <label>População N <input name="populacao" type="number" min="4" max="120" step="1"></label>
+        <label>Gerações <input name="geracoes" type="number" min="1" max="400" step="1"></label>
+        <label>Neurônios ocultos <input name="ocultos" type="number" min="4" max="48" step="1"></label>
+        <label>Elitismo <input name="elitismo" type="number" min="1" max="30" step="1"></label>
+        <label>Torneio k <input name="torneio" type="number" min="2" max="12" step="1"></label>
+        <label>Taxa de cruzamento <input name="taxaCruzamento" type="number" min="0" max="1" step="0.05"></label>
+        <label>Taxa de mutação <input name="taxaMutacao" type="number" min="0" max="1" step="0.01"></label>
+        <label>σ da mutação <input name="sigma" type="number" min="0.01" max="1.5" step="0.01"></label>
+        <label>α do BLX <input name="alphaBlx" type="number" min="0" max="1" step="0.05"></label>
+        <label>Cruzamento
+          <select name="cruzamento">
+            <option value="blx">BLX-α (reais)</option>
+            <option value="aritmetico">Aritmético (reais)</option>
+          </select>
+        </label>
+        <label>Ordem dos modos
+          <select name="curriculo">
+            <option value="curriculo">Médio, depois misto, depois difícil</option>
+            <option value="medio">Só médio</option>
+            <option value="dificil">Só difícil</option>
+          </select>
+        </label>
+        <label>Partidas no médio <input name="jogosMedio" type="number" min="2" max="20" step="1"></label>
+        <label>Partidas no difícil <input name="jogosDificil" type="number" min="2" max="20" step="1"></label>
+        <label>Paciência <input name="paciencia" type="number" min="3" max="80" step="1"></label>
+        <label>Limiar de sucesso <input name="limiarSucesso" type="number" min="0" max="12" step="0.1"></label>
+        <label>Semente <input name="semente" type="number" min="0" max="1000000000" step="1"></label>
+        <div class="botoes config-acoes">
+          <button type="submit" class="secundario">Aplicar parâmetros</button>
+          <span id="cromossomo" class="cromossomo"></span>
+        </div>
+      </form>
+
+      <div class="botoes treino-acoes">
+        <button type="button" id="criar-pop" class="secundario">Criar população</button>
+        <button type="button" id="uma-geracao" class="primario">Próxima geração</button>
+        <button type="button" id="treinar" class="primario">Treinar até parar</button>
+        <button type="button" id="parar" class="perigo">Parar</button>
+      </div>
+      <p id="motivo" class="motivo"></p>
+
+      <div class="treino-corpo">
+        <section class="bloco">
+          <h2>Evolução da aptidão</h2>
+          <canvas id="grafico" width="640" height="240"></canvas>
+          <div class="legenda">
+            <span><i class="cor melhor"></i> Melhor da fase</span>
+            <span><i class="cor media"></i> Média</span>
+            <span><i class="cor validacao"></i> Validação no difícil</span>
+            <span><i class="cor campea"></i> Campeã</span>
+          </div>
+          <dl id="numeros" class="numeros"></dl>
+        </section>
+        <section class="bloco">
+          <h2>Partida da melhor rede desta geração</h2>
+          <div id="tabuleiro-demo" class="tabuleiro demo"></div>
+          <p id="anuncio-demo" class="anuncio">A partida de exemplo aparece depois da primeira avaliação.</p>
+          <button type="button" id="rever" class="secundario">Rever partida</button>
+        </section>
+      </div>
+
+      <div class="treino-corpo">
+        <section class="bloco">
+          <h2>População desta geração</h2>
+          <div id="populacao" class="populacao"></div>
+        </section>
+        <section class="bloco">
+          <h2>Passo a passo</h2>
+          <ol id="diario" class="diario"></ol>
+        </section>
+      </div>
+    </section>
+
+    <section id="painel-rede" class="painel" hidden>
+      <div class="jogo">
+        <div>
+          <div id="tabuleiro-rede" class="tabuleiro"></div>
+          <p id="anuncio-rede" class="anuncio">Inicie uma partida contra a rede campeã.</p>
+        </div>
+        <aside class="lateral">
+          <h2>Contra a rede</h2>
+          <p class="nota">Acurácia = jogadas da rede que também são ótimas para o Minimax, divididas pelas jogadas dela. Aproveitamento = (vitórias + empates da rede) / partidas.</p>
+          <p id="aviso-rede" class="aviso" hidden>Ainda não há rede treinada. Esta partida usa pesos aleatórios.</p>
+          <label class="cheque">
+            <input id="comeco-rede" type="checkbox" checked>
+            Eu começo (sou o X)
+          </label>
+          <div class="botoes">
+            <button type="button" id="nova-rede" class="primario">Nova partida</button>
+            <button type="button" id="zerar-rede" class="secundario">Zerar placar</button>
+            <button type="button" id="benchmark" class="secundario">Testar acurácia</button>
+          </div>
+          <dl id="placar-rede" class="placar"></dl>
+          <div id="benchmark-resultado" class="benchmark"></div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
